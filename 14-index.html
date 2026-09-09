@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRACTAL BASINS - inside the mind of a reasoning model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#101528; --navy2:#1a2140; --cream:#f2ead8; --orange:#ff6b1a; --teal:#3ec6b8; --dim:#8a90ad; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--navy); color:var(--cream); font-family:'Spline Sans Mono',monospace;}
+  header{padding:26px 20px 18px; border-bottom:3px solid var(--orange); max-width:1100px; margin:0 auto;}
+  h1{font-size:26px; letter-spacing:4px; color:var(--orange);}
+  h1 span{color:var(--cream);}
+  .sub{color:var(--dim); font-size:12px; letter-spacing:2px; margin-top:8px; line-height:1.7;}
+  .sub a{color:var(--teal);}
+  section{max-width:1100px; margin:0 auto; padding:26px 20px; border-bottom:1px solid #232a4d;}
+  h2{font-size:15px; letter-spacing:3px; color:var(--orange); margin-bottom:10px;}
+  p{font-size:13px; line-height:1.8; color:var(--cream); max-width:760px;}
+  p b{color:var(--teal); font-weight:normal;}
+  .demo{display:flex; gap:22px; flex-wrap:wrap; margin-top:18px;}
+  canvas{background:#0a0e20; border:1px solid #232a4d; image-rendering:pixelated;}
+  .controls{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; align-items:center;}
+  button{background:var(--orange); color:var(--navy); border:none; font-family:inherit; font-size:12px;
+    letter-spacing:1px; padding:8px 14px; cursor:pointer;}
+  button.ghost{background:#232a4d; color:var(--cream);}
+  button:hover{filter:brightness(1.15);}
+  select{background:#232a4d; color:var(--cream); border:none; font-family:inherit; padding:8px; font-size:12px;}
+  label{font-size:11px; color:var(--dim); letter-spacing:1px;}
+  input[type=range]{accent-color:var(--orange);}
+  #status{font-size:11px; color:var(--teal); min-height:16px; letter-spacing:1px;}
+  .cap{font-size:10px; color:var(--dim); margin-top:6px; max-width:480px; line-height:1.6;}
+  footer{max-width:1100px; margin:0 auto; padding:22px 20px 40px; font-size:11px; color:var(--dim); line-height:1.9;}
+  footer a{color:var(--teal);}
+</style>
+</head>
+<body>
+<header>
+  <h1>FRACTAL <span>BASINS</span></h1>
+  <div class="sub">AN INTERACTIVE TOUR OF "FRACTAL BASINS TRAP LATENT REASONING" (LAI, BAO, QUINN, GILPIN - <a href="https://arxiv.org/abs/2609.04963">ARXIV:2609.04963</a>)<br>
+  WHEN A REASONING MODEL THINKS HARDER, ITS THOUGHTS BECOME A DYNAMICAL SYSTEM WITH FRACTAL BOUNDARIES. THIS PAGE LETS YOU WATCH THAT HAPPEN.</div>
+</header>
+
+<section>
+  <h2>01 / THE CLAIM</h2>
+  <p>Reasoning models think longer on harder problems. Why? Gilpin's group shows the thinking itself is a
+  <b>dynamical system</b>: each step of reasoning revisits and revises an attempted answer. On easy problems the
+  iteration falls straight into the right answer. On hard problems it gets trapped near <b>saddle points</b> -
+  nearly-correct solutions that almost work - and wanders chaotically between them before escaping. The map of
+  "which answer you land on, given where you started" has <b>fractal boundaries</b>, and the fractality grows with
+  task difficulty. Below: two live demonstrations you can poke.</p>
+</section>
+
+<section>
+  <h2>02 / WATCH A SOLVER THINK (SUDOKU)</h2>
+  <p>A min-conflicts solver is a tiny reasoning model: it holds a full candidate answer, finds where it
+  contradicts itself, and revises one cell at a time, starting hot and exploratory, then cooling toward an answer - like a reasoning trace settling. The plot is its <b>thought trajectory</b> - total
+  contradictions over time. Easy puzzle: straight to the answer. Hard puzzle: long chaotic wandering, hovering
+  near almost-right grids (conflicts = 1 or 2) that are exactly the paper's saddle points. Hit
+  <b>PERTURB ONE CELL</b> mid-thought: a one-cell change sends the whole trajectory somewhere else. That
+  sensitivity is the chaos.</p>
+  <div class="controls">
+    <select id="puz">
+      <option value="easy">EASY PUZZLE</option>
+      <option value="hard" selected>HARD PUZZLE (AI ESCARGOT)</option>
+    </select>
+    <button id="start">THINK</button>
+    <button id="perturb" class="ghost">PERTURB ONE CELL</button>
+    <span id="status"></span>
+  </div>
+  <div class="demo">
+    <div><canvas id="grid" width="360" height="360"></canvas><div class="cap">THE CANDIDATE ANSWER. ORANGE = CONTRADICTED CELLS. GIVENS IN CREAM.</div></div>
+    <div><canvas id="traj" width="520" height="360"></canvas><div class="cap">THOUGHT TRAJECTORY: CONTRADICTIONS VS ITERATION. ORANGE BAND = SADDLE ZONE (1-2 CONFLICTS, ALMOST RIGHT).</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>03 / THE FRACTAL MAP OF ANSWERS (BASIN EXPLORER)</h2>
+  <p>Here is the paper's fractal made literal. Newton's method is the simplest iterative reasoner: it starts
+  from a guess and repeatedly improves it until it lands on a root of z^3 - 1. There are three correct answers
+  (three roots). Color every starting guess by which answer it reaches: <b>orange, teal, cream</b>. The boundary
+  between colors is not a line - it is a fractal. <b>Click to zoom</b> into any boundary: it keeps branching,
+  forever. Near the boundary, an infinitesimally different first guess gives a completely different final answer.
+  That is what a hard problem does to a reasoning trace.</p>
+  <div class="controls">
+    <label>RELAXATION (OMEGA): <span id="omval">1.00</span></label>
+    <input type="range" id="omega" min="50" max="150" value="100">
+    <button id="resetzoom" class="ghost">RESET ZOOM</button>
+  </div>
+  <div class="demo">
+    <div><canvas id="basin" width="640" height="480"></canvas><div class="cap">CLICK TO ZOOM 4X. SLIDE OMEGA AWAY FROM 1.00 - THE RELAXED ITERATION GOES CHAOTIC AND THE BASINS GET WILDER. DARKER = TOOK LONGER TO DECIDE.</div></div>
+  </div>
+</section>
+
+<footer>
+  SOURCES: Lai, Bao, Quinn &amp; Gilpin, "Fractal basins trap latent reasoning", <a href="https://arxiv.org/abs/2609.04963">arXiv:2609.04963</a> (Sep 2026) -
+  reasoning models exhibit transient chaos; fractality increases with task difficulty across Sudoku, mazes, visual puzzles and mathematical logic;
+  slowdowns come from trapping near saddle points that correspond to nearly-correct attempted solutions.
+  Via <a href="https://x.com/wgilpin0/status/2097354911017316736">William Gilpin's thread</a>. Built by Instinct for Jacob.
+</footer>
+<script>
+"use strict";
+// ================= 02 / SUDOKU THINKER =================
+const PUZZLES = {
+  easy: "530070000600195000098000060800060003400803001700020006060000280000419005000080079",
+  hard: "100007090030020008009600500005300900010080002600004000300000010040000007007000300"
+};
+const gridCv = document.getElementById("grid"), gctx = gridCv.getContext("2d");
+const trajCv = document.getElementById("traj"), tctx = trajCv.getContext("2d");
+
+let S = null; // solver state
+const ANNEAL = {
+  easy: { n0: 0.12, floor: 0.04, T: 40,  perFrame: 30 },
+  hard: { n0: 0.85, floor: 0.08, T: 400, perFrame: 8 }
+};
+function newSolver(puzKey){
+  const cfg = ANNEAL[puzKey];
+  const givens = PUZZLES[puzKey].split("").map(Number);
+  const board = givens.slice();
+  // fill each row's blanks with a random permutation of its missing digits
+  for(let r=0;r<9;r++){
+    const present = new Set();
+    for(let c=0;c<9;c++) if(givens[r*9+c]) present.add(givens[r*9+c]);
+    const missing = [];
+    for(let d=1;d<=9;d++) if(!present.has(d)) missing.push(d);
+    for(let i=missing.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [missing[i],missing[j]]=[missing[j],missing[i]]; }
+    let k=0;
+    for(let c=0;c<9;c++) if(!givens[r*9+c]) board[r*9+c] = missing[k++];
+  }
+  return { givens, board, iter:0, hist:[], done:false, conflicted:new Set(), saddleRun:0, saddles:0, n0:cfg.n0, floor:cfg.floor, T:cfg.T, perFrame:cfg.perFrame };
+}
+function conflicts(S){
+  // count column+box duplicates, mark conflicted cells
+  let total = 0; S.conflicted = new Set();
+  for(let c=0;c<9;c++){
+    const seen = {};
+    for(let r=0;r<9;r++){ const v=S.board[r*9+c]; (seen[v]=seen[v]||[]).push(r*9+c); }
+    for(const v in seen) if(seen[v].length>1){ total += seen[v].length-1; seen[v].forEach(i=>S.conflicted.add(i)); }
+  }
+  for(let b=0;b<9;b++){
+    const br=Math.floor(b/3)*3, bc=(b%3)*3, seen={};
+    for(let i=0;i<9;i++){ const r=br+Math.floor(i/3), c=bc+i%3, v=S.board[r*9+c]; (seen[v]=seen[v]||[]).push(r*9+c); }
+    for(const v in seen) if(seen[v].length>1){ total += seen[v].length-1; seen[v].forEach(i=>S.conflicted.add(i)); }
+  }
+  return total;
+}
+function cellConflicts(S, idx, val){
+  // conflicts val would create for cell idx (col+box), excluding idx itself
+  const r=Math.floor(idx/9), c=idx%9; let n=0;
+  for(let i=0;i<9;i++){ const j=i*9+c; if(j!==idx && S.board[j]===val) n++; }
+  const br=Math.floor(r/3)*3, bc=Math.floor(c/3)*3;
+  for(let i=0;i<9;i++){ const rr=br+Math.floor(i/3), cc=bc+i%3, j=rr*9+cc; if(j!==idx && S.board[j]===val) n++; }
+  return n;
+}
+function step(S){
+  if(S.done) return;
+  const total = conflicts(S);
+  S.hist.push(total);
+  if(total===0){ S.done=true; return; }
+  if(total<=2){ S.saddleRun++; if(S.saddleRun===40) S.saddles++; } else S.saddleRun=0;
+  if(S.hist.length>30000){ S.done=true; return; } // gave up
+  // pick a random conflicted non-given cell, set to min-conflict value (with noise)
+  const cand=[...S.conflicted].filter(i=>!S.givens[i]);
+  if(!cand.length){ S.done=true; return; }
+  const idx = cand[Math.floor(Math.random()*cand.length)];
+  let best=[], bestN=99;
+  for(let d=1;d<=9;d++){
+    const n = cellConflicts(S, idx, d);
+    if(n<bestN){ bestN=n; best=[d]; } else if(n===bestN) best.push(d);
+  }
+  // annealed noise: the trace starts hot and exploratory, then cools and settles
+  const noise = S.floor + (S.n0 - S.floor) * Math.exp(-S.iter / S.T);
+  S.board[idx] = Math.random()<noise ? 1+Math.floor(Math.random()*9) : best[Math.floor(Math.random()*best.length)];
+  S.iter++;
+}
+function drawGrid(){
+  const s=40;
+  gctx.clearRect(0,0,360,360);
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const i=r*9+c, v=S.board[i];
+    if(S.conflicted.has(i)){ gctx.fillStyle="rgba(255,107,26,0.35)"; gctx.fillRect(c*s,r*s,s,s); }
+    gctx.fillStyle = S.givens[i] ? "#f2ead8" : "#3ec6b8";
+    gctx.font = (S.givens[i]?"bold ":"")+"20px Courier New";
+    if(v) gctx.fillText(v, c*s+14, r*s+26);
+  }
+  gctx.strokeStyle="#232a4d";
+  for(let i=0;i<=9;i++){
+    gctx.lineWidth = i%3===0?2:1;
+    gctx.beginPath(); gctx.moveTo(i*s,0); gctx.lineTo(i*s,360); gctx.stroke();
+    gctx.beginPath(); gctx.moveTo(0,i*s); gctx.lineTo(360,i*s); gctx.stroke();
+  }
+}
+function drawTraj(){
+  const W=520,H=360,pad=30;
+  tctx.clearRect(0,0,W,H);
+  const maxC=45, maxI=Math.max(400, S.hist.length);
+  // saddle zone band (1-2 conflicts)
+  const y1=H-pad-(2/maxC)*(H-2*pad), y0=H-pad-(1/maxC)*(H-2*pad);
+  tctx.fillStyle="rgba(255,107,26,0.12)"; tctx.fillRect(pad,y1,W-2*pad,y0-y1);
+  tctx.strokeStyle="#232a4d"; tctx.beginPath(); tctx.moveTo(pad,pad); tctx.lineTo(pad,H-pad); tctx.lineTo(W-pad,H-pad); tctx.stroke();
+  tctx.fillStyle="#8a90ad"; tctx.font="10px Courier New";
+  tctx.fillText("0",10,H-pad+4); tctx.fillText(""+maxC,4,pad+4);
+  tctx.fillText("ITERATIONS ->", W/2-40, H-6);
+  // trajectory
+  tctx.strokeStyle="#3ec6b8"; tctx.lineWidth=1.5; tctx.beginPath();
+  const n=S.hist.length;
+  for(let i=0;i<n;i++){
+    const x=pad+(i/maxI)*(W-2*pad), y=H-pad-(Math.min(S.hist[i],maxC)/maxC)*(H-2*pad);
+    i?tctx.lineTo(x,y):tctx.moveTo(x,y);
+  }
+  tctx.stroke();
+}
+function status(){
+  const el=document.getElementById("status");
+  if(S.done && S.hist[S.hist.length-1]===0) el.textContent="SOLVED IN "+S.iter+" ITERATIONS"+(S.saddles?" - GOT STUCK NEAR NEARLY-RIGHT ANSWERS "+S.saddles+"X":"");
+  else if(S.done) el.textContent="GAVE UP AFTER 30,000 ITERATIONS - STILL WANDERING. THAT'S THE POINT.";
+  else el.textContent="THINKING... "+S.iter+" ITERATIONS, "+(S.hist[S.hist.length-1]||0)+" CONTRADICTIONS"+(S.saddleRun>40?"  [TRAPPED NEAR A NEARLY-CORRECT ANSWER - A SADDLE]":"");
+}
+let anim=null;
+function runSolver(){
+  if(anim) cancelAnimationFrame(anim);
+  S = newSolver(document.getElementById("puz").value);
+  const perFrame = S.perFrame;
+  function loop(){
+    for(let i=0;i<perFrame && !S.done;i++) step(S);
+    conflicts(S); drawGrid(); drawTraj(); status();
+    if(!S.done) anim=requestAnimationFrame(loop);
+  }
+  loop();
+}
+document.getElementById("start").onclick=runSolver;
+document.getElementById("perturb").onclick=()=>{
+  if(!S||S.done) return;
+  // change one non-given cell to a random digit - tiny nudge, big consequences
+  const idxs=[]; for(let i=0;i<81;i++) if(!S.givens[i]) idxs.push(i);
+  const i=idxs[Math.floor(Math.random()*idxs.length)];
+  S.board[i]=1+Math.floor(Math.random()*9);
+};
+// ================= 03 / BASIN EXPLORER =================
+const bCv=document.getElementById("basin"), bctx=bCv.getContext("2d");
+const BW=640, BH=480;
+let view={cx:0, cy:0, half:1.6};   // complex-plane window
+let omega=1.0, renderY=0, renderRAF=null;
+const ROOTS=[[1,0],[-0.5,0.8660254],[-0.5,-0.8660254]];
+const COLORS=[[255,107,26],[62,198,184],[242,234,216]]; // orange, teal, cream
+
+function basinAt(re, im){
+  let zr=re, zi=im;
+  for(let i=0;i<60;i++){
+    // f = z^3 - 1 ; f' = 3z^2 ; relaxed Newton: z -= omega * f/f'
+    const zr2=zr*zr-zi*zi, zi2=2*zr*zi;                 // z^2
+    const fr=zr*zr2-zi*zi2-1, fi=zr*zi2+zi*zr2;          // f
+    const dr=3*zr2, di=3*zi2;                            // f'
+    const dd=dr*dr+di*di+1e-12;
+    const qr=(fr*dr+fi*di)/dd, qi=(fi*dr-fr*di)/dd;      // f/f'
+    zr-=omega*qr; zi-=omega*qi;
+    for(let k=0;k<3;k++){
+      const dx=zr-ROOTS[k][0], dy=zi-ROOTS[k][1];
+      if(dx*dx+dy*dy<1e-6) return [k,i];
+    }
+  }
+  return [-1,60];
+}
+function renderBasin(){
+  if(renderRAF) cancelAnimationFrame(renderRAF);
+  renderY=0;
+  const img=bctx.createImageData(BW,1);
+  function rows(){
+    const t0=performance.now();
+    while(renderY<BH && performance.now()-t0<14){
+      const im=view.cy+view.half-(renderY+0.5)*(2*view.half/BH);
+      for(let x=0;x<BW;x++){
+        const re=view.cx-view.half*(BW/BH)+(x+0.5)*(2*view.half*(BW/BH)/BW);
+        const [k,it]=basinAt(re,im);
+        const o=x*4;
+        if(k<0){ img.data[o]=10; img.data[o+1]=14; img.data[o+2]=32; }
+        else{
+          const shade=1-Math.min(it,50)/60;
+          img.data[o]=COLORS[k][0]*shade*0.9+10;
+          img.data[o+1]=COLORS[k][1]*shade*0.9+14;
+          img.data[o+2]=COLORS[k][2]*shade*0.9+32;
+        }
+        img.data[o+3]=255;
+      }
+      bctx.putImageData(img,0,renderY);
+      renderY++;
+    }
+    if(renderY<BH) renderRAF=requestAnimationFrame(rows);
+  }
+  rows();
+}
+bCv.addEventListener("click",e=>{
+  const r=bCv.getBoundingClientRect();
+  const fx=(e.clientX-r.left)/r.width, fy=(e.clientY-r.top)/r.height;
+  const re=view.cx-view.half*(BW/BH)+fx*2*view.half*(BW/BH);
+  const im=view.cy+view.half-fy*2*view.half;
+  view={cx:re, cy:im, half:view.half/4};
+  renderBasin();
+});
+document.getElementById("omega").addEventListener("input",e=>{
+  omega=e.target.value/100;
+  document.getElementById("omval").textContent=omega.toFixed(2);
+  renderBasin();
+});
+document.getElementById("resetzoom").onclick=()=>{ view={cx:0,cy:0,half:1.6}; renderBasin(); };
+renderBasin();
+</script>
+</body>
+</html>
